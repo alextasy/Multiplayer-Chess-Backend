@@ -53,7 +53,8 @@ export default io => {
 
         socket.on('leftRoom', roomId => {
             filterRooms();
-            socket.broadcast.to(roomId).emit('opponentDisconnected');
+            socket.broadcast.to(roomId).emit('playerDisconnected', socket.userId);
+            deleteIngameRoom(roomId);
         });
 
         socket.on('disconnect', () => {
@@ -62,13 +63,16 @@ export default io => {
             if (!roomPlayerWasIn) return;
             
             roomPlayerWasIn.timeOut = setTimeout(() => {
-                io.to(roomPlayerWasIn.id).emit('opponentDisconnected');
-                inGameRooms = inGameRooms.filter(room => room.id !== roomPlayerWasIn.id);
+                io.to(roomPlayerWasIn.id).emit('playerDisconnected', socket.userId);
+                deleteIngameRoom(roomPlayerWasIn.id);
             }, 15 * 1000);
         });
 
-        socket.on('gameOver', roomId => {
-            inGameRooms = inGameRooms.filter(room => room.id !== roomId)
-        });
+        socket.on('gameOver', deleteIngameRoom);
+
+        function deleteIngameRoom(roomId) {
+            inGameRooms = inGameRooms.filter(room => room.id !== roomId);
+            io.in(roomId).socketsLeave(roomId);
+        }
     });
 }
