@@ -8,6 +8,9 @@ export default io => {
 
         socket.on('connectUser', userId => {
             socket.userId = userId;
+            const roomPlayerIsWaitingIn = rooms.find(room => room.creatorId === userId);
+            if (roomPlayerIsWaitingIn) io.to(socket.id).emit('verifyStillInRoom', roomPlayerIsWaitingIn.id);
+
             const roomPlayerWasIn = inGameRooms.find(room => room.visitorId === userId || room.creatorId === userId);
             if (!roomPlayerWasIn) return;
 
@@ -17,9 +20,20 @@ export default io => {
         });
 
         function filterRooms(roomId = null) {
-            rooms = rooms.filter(room => room.creatorId !== socket.userId && room.id !== roomId);
-            io.emit('updateRooms', rooms);
+            rooms = rooms.filter(room => room.timeOut || room.creatorId !== socket.userId && room.id !== roomId);
+            const roomsToShow = rooms.filter(room => !room.timeOut);
+            io.emit('updateRooms', roomsToShow);
         }
+
+        socket.on('verifyStillInRoom', () => {
+            const room = rooms.find(room => room.creatorId === socket.userId);
+            clearTimeout(room.timeOut);
+            delete room.timeOut;
+            socket.join(room.id);
+            socket.emit('roomJoined', room.id);
+            const roomsToShow = rooms.filter(room => !room.timeOut);
+            socket.broadcast.emit('updateRooms', roomsToShow);
+        });
 
         socket.on('requestRooms', () => socket.emit('updateRooms', rooms));
 
@@ -58,7 +72,16 @@ export default io => {
         });
 
         socket.on('disconnect', () => {
+            const roomPlayerIsWaitingIn = rooms.find(room => room.creatorId === socket.userId);
+            if (roomPlayerIsWaitingIn) {
+                roomPlayerIsWaitingIn.timeOut = setTimeout(() => {
+                    delete roomPlayerIsWaitingIn.timeOut;
+                    filterRooms();
+                }, 15 * 1000);
+            }
+
             filterRooms();
+
             const roomPlayerWasIn = inGameRooms.find(room => room.visitorId === socket.userId || room.creatorId === socket.userId);
             if (!roomPlayerWasIn) return;
             
