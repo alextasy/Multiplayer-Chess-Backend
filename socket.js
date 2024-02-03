@@ -59,10 +59,10 @@ export default io => {
             io.to(roomId).emit('message', { message, sender });
         })
 
-        socket.on('move', ({ figIndex, nextSquareIndex, roomId }) => {
+        socket.on('move', ({ move, roomId }) => {
             const room = inGameRooms.find(room => room.id === roomId);
-            room.lastMove = { figIndex, nextSquareIndex };
-            socket.broadcast.to(roomId).emit('move', { figIndex, nextSquareIndex });
+            room.lastMove = move;
+            socket.broadcast.to(roomId).emit('move', move);
         })
 
         socket.on('leftRoom', roomId => {
