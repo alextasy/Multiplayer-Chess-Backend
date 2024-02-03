@@ -1,6 +1,6 @@
 {
   "name": "multiplayer-chess",
-  "version": "1.1.3",
+  "version": "1.1.4",
   "description": "Multiplayer chess game using React as a front end and Node and SocketIO in the backend",
   "main": "server.js",
   "type": "module",

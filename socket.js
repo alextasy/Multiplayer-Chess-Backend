@@ -77,7 +77,7 @@ export default io => {
                 roomPlayerIsWaitingIn.timeOut = setTimeout(() => {
                     delete roomPlayerIsWaitingIn.timeOut;
                     filterRooms();
-                }, 15 * 1000);
+                }, 60 * 1000);
             }
 
             filterRooms();
@@ -88,7 +88,7 @@ export default io => {
             roomPlayerWasIn.timeOut = setTimeout(() => {
                 io.to(roomPlayerWasIn.id).emit('playerDisconnected', socket.userId);
                 deleteIngameRoom(roomPlayerWasIn.id);
-            }, 15 * 1000);
+            }, 60 * 1000);
         });
 
         socket.on('gameOver', deleteIngameRoom);
