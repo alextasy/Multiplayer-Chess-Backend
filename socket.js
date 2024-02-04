@@ -16,11 +16,12 @@ export default io => {
 
             if (roomPlayerWasIn.timeOut) clearTimeout(roomPlayerWasIn.timeOut);
             socket.join(roomPlayerWasIn.id);
+            if ((roomPlayerWasIn.lastMove?.id || 0) < 2) io.to(socket.id).emit('verifyGameStarted')
             io.to(socket.id).emit('verifyLastMove', roomPlayerWasIn.lastMove || {}); // Opponent could have made a move while we were disconnected
         });
 
         function filterRooms(roomId = null) {
-            rooms = rooms.filter(room => room.timeOut || room.creatorId !== socket.userId && room.id !== roomId);
+            rooms = rooms.filter(room => room.id !== roomId && (room.timeOut || room.creatorId !== socket.userId));
             const roomsToShow = rooms.filter(room => !room.timeOut);
             io.emit('updateRooms', roomsToShow);
         }
@@ -39,18 +40,18 @@ export default io => {
 
         socket.on('createRoom', options => {
             const roomId = uuid();
-            rooms.push({ ...options, id: roomId, creatorId: socket.userId });
+            rooms.push({ ...options, id: roomId });
             socket.join(roomId);
             socket.emit('roomJoined', roomId);
             socket.broadcast.emit('updateRooms', rooms);
         })
 
-        socket.on('joinRoom', roomId => {
+        socket.on('joinRoom', (roomId, visitorId) => {
             socket.join(roomId);
             socket.emit('roomJoined', roomId);
-            io.emit('gameStart');
+            socket.to(roomId).emit('gameStart');
             const room = rooms.find(room => room.id === roomId);
-            room.visitorId = socket.userId;
+            room.visitorId = visitorId;
             inGameRooms.push(room);
             filterRooms(roomId);
         })
@@ -61,12 +62,13 @@ export default io => {
 
         socket.on('move', ({ move, roomId }) => {
             const room = inGameRooms.find(room => room.id === roomId);
+            if (!room) return;
             room.lastMove = move;
             socket.broadcast.to(roomId).emit('move', move);
         })
 
         socket.on('leftRoom', roomId => {
-            filterRooms();
+            filterRooms(roomId);
             socket.broadcast.to(roomId).emit('playerDisconnected', socket.userId);
             deleteIngameRoom(roomId);
         });
@@ -86,7 +88,7 @@ export default io => {
             if (!roomPlayerWasIn) return;
             
             roomPlayerWasIn.timeOut = setTimeout(() => {
-                io.to(roomPlayerWasIn.id).emit('playerDisconnected', socket.userId);
+                io.in(roomPlayerWasIn.id).emit('playerDisconnected', socket.userId);
                 deleteIngameRoom(roomPlayerWasIn.id);
             }, 60 * 1000);
         });
