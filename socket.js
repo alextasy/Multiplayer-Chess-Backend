@@ -14,7 +14,9 @@ export default io => {
             const roomPlayerWasIn = inGameRooms.find(room => room.visitorId === userId || room.creatorId === userId);
             if (!roomPlayerWasIn) return;
 
-            if (roomPlayerWasIn.timeOut) clearTimeout(roomPlayerWasIn.timeOut);
+            const timeOutType = socket.userId === roomPlayerWasIn.creatorId ? 'creatorTimeOut' : 'visitorTimeOut';
+            if (roomPlayerWasIn[timeOutType]) clearTimeout(roomPlayerWasIn[timeOutType]);
+
             socket.join(roomPlayerWasIn.id);
             if ((roomPlayerWasIn.lastMove?.id || 0) < 2) io.to(socket.id).emit('verifyGameStarted')
             io.to(socket.id).emit('verifyLastMove', roomPlayerWasIn.lastMove || {}); // Opponent could have made a move while we were disconnected
@@ -49,7 +51,7 @@ export default io => {
         socket.on('joinRoom', (roomId, visitorId) => {
             socket.join(roomId);
             socket.emit('roomJoined', roomId);
-            socket.to(roomId).emit('gameStart');
+            io.in(roomId).emit('gameStart');
             const room = rooms.find(room => room.id === roomId);
             room.visitorId = visitorId;
             inGameRooms.push(room);
@@ -87,10 +89,13 @@ export default io => {
             const roomPlayerWasIn = inGameRooms.find(room => room.visitorId === socket.userId || room.creatorId === socket.userId);
             if (!roomPlayerWasIn) return;
             
-            roomPlayerWasIn.timeOut = setTimeout(() => {
+            const timeOutType = socket.userId === roomPlayerWasIn.creatorId ? 'creatorTimeOut' : 'visitorTimeOut';
+            if (roomPlayerWasIn[timeOutType]) clearTimeout(roomPlayerWasIn[timeOutType]);
+
+            roomPlayerWasIn[timeOutType] = setTimeout(() => {
                 io.in(roomPlayerWasIn.id).emit('playerDisconnected', socket.userId);
                 deleteIngameRoom(roomPlayerWasIn.id);
-            }, 60 * 1000);
+            }, 15 * 1000);
         });
 
         socket.on('gameOver', deleteIngameRoom);
